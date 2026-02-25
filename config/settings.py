@@ -25,15 +25,23 @@ SECRET_KEY = 'django-insecure-61j6_j0s#12j*s1!6qvi1t_3ky-!3f-z#d@zl-0wfr2ptsq_o$
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
 
-_raw_hosts = os.getenv("DJANGO_ALLOWED_HOSTS", "")
+# Hostok env-ből (vesszővel elválasztva)
+_raw_hosts = os.getenv("DJANGO_ALLOWED_HOSTS", "").strip()
 ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(",") if h.strip()]
 
-# hasznos OpenShift-en: engedd a route domaineket is
-ALLOWED_HOSTS += [".openshiftapps.com"]
+# OpenShift route-okhoz: minden *.openshiftapps.com engedélyezése
+# (leading dot = subdomain wildcard)
+ALLOWED_HOSTS.append(".openshiftapps.com")
 
-# helyi fejlesztéshez
-ALLOWED_HOSTS += ["localhost", "127.0.0.1"]
+# lokális fejlesztés
+ALLOWED_HOSTS += ["localhost", "127.0.0.1", "[::1]"]
 
+# duplikációk kiszűrése + üres elemek eltakarítása
+ALLOWED_HOSTS = sorted(set([h for h in ALLOWED_HOSTS if h]))
+
+# Reverse proxy / route mögött fontos (különben CSRF/host furán viselkedhet)
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Application definition
 
