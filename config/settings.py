@@ -23,9 +23,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-61j6_j0s#12j*s1!6qvi1t_3ky-!3f-z#d@zl-0wfr2ptsq_o$'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
 
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
+_raw_hosts = os.getenv("DJANGO_ALLOWED_HOSTS", "")
+ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(",") if h.strip()]
+
+# hasznos OpenShift-en: engedd a route domaineket is
+ALLOWED_HOSTS += [".openshiftapps.com"]
+
+# helyi fejlesztéshez
+ALLOWED_HOSTS += ["localhost", "127.0.0.1"]
 
 
 # Application definition
