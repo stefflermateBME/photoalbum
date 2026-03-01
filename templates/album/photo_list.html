@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Képek</h1>
+
+<div style="display:flex;gap:12px;align-items:center;">
+  <span>Rendezés:</span>
+  <a href="?sort=date"{% if sort == "date" %} style="font-weight:bold"{% endif %}>Dátum szerint</a>
+  <a href="?sort=name"{% if sort == "name" %} style="font-weight:bold"{% endif %}>Név szerint</a>
+</div>
+
+<hr>
+
+<ul>
+  {% for p in photos %}
+    <li style="margin-bottom:10px;">
+      <a href="{% url 'photo-detail' p.pk %}">
+        {{ p.name }}
+      </a>
+      — {{ p.uploaded_at|date:"Y-m-d H:i" }}
+      — feltöltő: {{ p.owner.username }}
+      {% if user.is_authenticated and p.owner_id == user.id %}
+        — <a href="{% url 'photo-delete' p.pk %}">törlés</a>
+      {% endif %}
+    </li>
+  {% empty %}
+    <li>Nincs még feltöltött kép.</li>
+  {% endfor %}
+</ul>
+
+{% endblock %}

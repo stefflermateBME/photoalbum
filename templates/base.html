@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Photoalbum</title>
+</head>
+<body>
+  <header style="display:flex;gap:12px;align-items:center;justify-content:space-between;">
+    <div>
+      <a href="{% url 'photo-list' %}"><strong>Photoalbum</strong></a>
+    </div>
+    <nav style="display:flex;gap:12px;align-items:center;">
+      {% if user.is_authenticated %}
+        <span>Bejelentkezve: <strong>{{ user.username }}</strong></span>
+        <a href="{% url 'photo-upload' %}">Feltöltés</a>
+        <form action="{% url 'logout' %}" method="post" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit">Kilépés</button>
+        </form>
+      {% else %}
+        <a href="{% url 'login' %}">Belépés</a>
+        <a href="{% url 'signup' %}">Regisztráció</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <hr>
+
+  {% if messages %}
+    <ul>
+      {% for message in messages %}
+        <li>{{ message }}</li>
+      {% endfor %}
+    </ul>
+    <hr>
+  {% endif %}
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

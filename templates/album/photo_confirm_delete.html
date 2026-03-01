@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Törlés</h1>
+<p>Biztosan törlöd ezt a képet?</p>
+<p><strong>{{ photo.name }}</strong> ({{ photo.uploaded_at|date:"Y-m-d H:i" }})</p>
+
+<form method="post">
+  {% csrf_token %}
+  <button type="submit">Igen, törlöm</button>
+  <a href="{% url 'photo-list' %}">Mégse</a>
+</form>
+
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Új kép feltöltése</h1>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <p>
+    <label>Név (max 40):</label><br>
+    {{ form.name }}
+    {% for e in form.name.errors %}<div style="color:red">{{ e }}</div>{% endfor %}
+  </p>
+  <p>
+    <label>Kép:</label><br>
+    {{ form.image }}
+    {% for e in form.image.errors %}<div style="color:red">{{ e }}</div>{% endfor %}
+  </p>
+  <button type="submit">Feltöltés</button>
+</form>
+
+{% endblock %}

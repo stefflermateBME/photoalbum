@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>{{ photo.name }}</h1>
+<p>Feltöltve: {{ photo.uploaded_at|date:"Y-m-d H:i" }}</p>
+<p>Feltöltő: {{ photo.owner.username }}</p>
+
+<div style="margin-top:16px;">
+  <img src="{{ photo.image.url }}" alt="{{ photo.name }}" style="max-width:100%;height:auto;">
+</div>
+
+<p style="margin-top:16px;">
+  <a href="{% url 'photo-list' %}">Vissza a listához</a>
+</p>
+
+{% endblock %}

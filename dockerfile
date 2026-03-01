@@ -1,16 +1,27 @@
 FROM python:3.12-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
-COPY requirements.txt .
+# system deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY . /app/
 
-ENV DJANGO_STATIC_ROOT=/data/static
+# Create dirs (OpenShift random UID is ok if mounted volume provides perms)
+RUN mkdir -p /data/media /app/staticfiles
+
 ENV DJANGO_MEDIA_ROOT=/data/media
-
-RUN python manage.py collectstatic --noinput || true
+ENV DJANGO_STATIC_ROOT=/app/staticfiles
 
 EXPOSE 8080
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8080"]
+
+# Start: migrate then collectstatic then gunicorn
+CMD ["sh", "-c", "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8080 --workers 2 --threads 4 --timeout 60"]
