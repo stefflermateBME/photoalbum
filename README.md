@@ -11,7 +11,8 @@ A dokumentáció célja, hogy **logikai sorrendben**, végigvezesse:
 ---
 
 ## 1. Gyors áttekintés
-
+ 
+ 
 ### Technológiai stack
 - Backend: `Django 5`
 - App szerver (konténerben): `gunicorn`
