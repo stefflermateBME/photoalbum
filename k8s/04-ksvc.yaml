@@ -11,7 +11,7 @@ spec:
     spec:
       containers:
         - name: photoalbum
-          image: image-registry.openshift-image-registry.svc:5000/REPLACE_ME_NAMESPACE/photoalbum:latest
+          image: image-registry.openshift-image-registry.svc:5000/photoalbum/photoalbum:latest
           ports:
             - containerPort: 8080
           envFrom:
@@ -22,7 +22,11 @@ spec:
           volumeMounts:
             - name: media-storage
               mountPath: /data/media
+            - name: staticfiles
+              mountPath: /app/staticfiles
       volumes:
         - name: media-storage
           persistentVolumeClaim:
             claimName: media-pvc
+        - name: staticfiles
+          emptyDir: {}
