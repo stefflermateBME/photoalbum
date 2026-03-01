@@ -1,0 +1,33 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: photoalbum
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: photoalbum
+spec:
+  runPolicy: Serial
+  source:
+    type: Git
+    git:
+      uri: "https://github.com/stefflermateBME/photoalbum"
+      ref: "main"
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: "photoalbum:latest"
+  triggers:
+    - type: ConfigChange
+    - type: ImageChange
+    - type: GitHub
+      github:
+        secret: "photoalbum-webhook-123"
+    - type: Generic
+      generic:
+        secret: "photoalbum-webhook-123"
