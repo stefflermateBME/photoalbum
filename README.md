@@ -1,73 +1,107 @@
-# Photoalbum – végleges megoldás dokumentáció
+Photoalbum – végleges megoldás dokumentáció
+Projekt áttekintés
 
-## Áttekintés
+A feladat célja egy skálázható fényképalbum‑alkalmazás létrehozása egy publikus PaaS környezetben.
+A projekt Python + Django keretrendszerre épül, és az alkalmazás konténerben fut az OpenShift Developer Sandbox klaszteren.
+A felhasználók fényképeket tölthetnek fel, listázhatják azokat név vagy dátum szerint, valamint megtekinthetik a részleteket.
+A rendszer felhasználókezelést (regisztráció, belépés, kilépés) és jogosultság‑ellenőrzést biztosít.
 
-Ez a dokumentum a `photoalbum` alkalmazás futtatási környezetét, architektúráját és telepítési logikáját foglalja össze.
+Környezet
+Komponens	Leírás
+PaaS	Red Hat OKD 4 (OpenShift Developer Sandbox)
+Programnyelv/keretrendszer	Python 3 + Django
+Tárolótechnológia	Dockerfile alapú build, OpenShift BuildConfig használatával
+CI/CD	GitHub webhookok által indított OpenShift BuildConfig builds
+Adatbázis	Neon Postgres (felhőalapú, külső adatbázis‑szolgáltatás)
+Persistent storage	CephFS alapú PVC (ReadWriteMany), a képek és médiatartalom tárolására
+Deployment stratégiája	RollingUpdate, amely lehetővé teszi a zéró állásidőt
+Architektúra és rétegek
+Alkalmazási réteg
 
-## Választott környezet
+A Django webalkalmazás egy konténerben fut; a Deployment erőforrás gondoskodik a példányok számáról és a RollingUpdate frissítési stratégiáról.
 
-| Elem | Megoldás |
-|---|---|
-| PaaS | Red Hat OKD 4.x (OpenShift Developer Sandbox) |
-| Keretrendszer | Python + Django |
-| Konténerizálás | Dockerfile + OpenShift BuildConfig |
-| Telepítés | OpenShift Deployment (RollingUpdate) |
-| Külső adatbázis | Neon Postgres |
+A statikus fájlokat (CSS/JS) a WhiteNoise middleware szolgálja ki. A collectstatic parancs a statikus tartalmat egy emptyDir kötetbe gyűjti össze a build során.
 
-## Rétegek és komponensek
+Az alkalmazás MEDIA_ROOT könyvtára persistent volume claimre van mountolva, így a felhasználók által feltöltött képek a podok újraindítása után is megmaradnak.
 
-### 1) Alkalmazási réteg
+A konfigurációs értékeket (adatbázis URI, titkos kulcs, engedélyezett hosztok) környezeti változókkal adjuk át a konténernek.
 
-- A `photoalbum` Django projekt konténerben fut.
-- A futó példányokat `Deployment` erőforrás kezeli és skálázza.
-- A feltöltött képek tárolása `MEDIA_ROOT` alatt történik, PVC mounttal (CephFS).
-- A statikus fájlokat (`CSS/JS`) a `WhiteNoise` szolgálja ki.
-- Build/futás közben a `collectstatic` az állományokat egy `emptyDir` kötetbe gyűjti.
+Adatbázis‑réteg
 
-### 2) Adatbázis-réteg
+A Neon Postgres egy teljesen menedzselt, külső adatbázis‑szolgáltatás. Az alkalmazás a DATABASE_URL környezeti változón keresztül kapcsolódik hozzá.
 
-- A `DATABASE_URL` környezeti változó egy Neon Postgres példányra mutat.
-- A Neon a klaszteren kívüli, külső szolgáltatásként működik.
-- A Django TCP kapcsolaton keresztül éri el, így az alkalmazás- és adatbázisréteg tisztán szétválik.
+Mivel az adatbázis a klaszteren kívül helyezkedik el, külön adatbázis‑rétegként funkcionál, megfelelve a többrétegű elvnek.
 
-### 3) Tároló réteg
+Tároló réteg
 
-- Az `media-pvc` CephFS-alapú perzisztens kötet.
-- Jelenlegi hozzáférési mód: `ReadWriteOnce` (egyszerre egy node írhatja).
-- Több példányos futtatáshoz javasolt `ReadWriteMany`-t támogató storage class, vagy külső objektumtároló.
+A feltöltött médiatartalom (képek) tárolására persistent volume claimet használunk. Az első verzióban ReadWriteOnce access mód volt beállítva, ami csupán egy pod/node számára tette elérhetővé a kötetet.
 
-## CI/CD és telepítés
+A skálázhatóság érdekében a végleges megoldás ReadWriteMany módú CephFS storage classot használ (media-pvc-rwx), amely lehetővé teszi, hogy több pod írjon és olvasson ugyanabból a kötetből egyszerre.
 
-- A `k8s/03-build.yaml` definiálja az `ImageStream` és `BuildConfig` erőforrásokat.
-- A BuildConfig Git forrásból, Docker stratégiával épít image-et.
-- A kész image célja: `photoalbum-git:latest` (`ImageStreamTag`).
-- A `triggers` mezőben GitHub webhook trigger szerepel, ezért minden push új buildet indíthat.
-- A webhook URL a BuildConfig **Webhooks** szekciójából másolható.
-- Sikeres build után az ImageStream frissül, és az ImageChange trigger újraindítja/frissíti a Deployment podokat.
+A PVC a podban a /data/media útvonalra van mountolva, ezt a DJANGO_MEDIA_ROOT környezeti változó adja át a Django beállításainak.
 
-## Kapcsolatok
+Alternatív megoldásként S3/MinIO típusú objekt‑tároló is használható, ami még jobb horizontális skálázhatóságot biztosít.
 
-- **Alkalmazás ↔ Adatbázis:** a Django a `postgresql://...` URI alapján kapcsolódik a Neonhoz.
-- **Alkalmazás ↔ Tároló:** a képek PVC-n tárolódnak, és `MEDIA_URL` alatt érhetők el.
-- **CI ↔ Kód:** GitHub push esemény → webhook → BuildConfig build → új image.
-- **Külső elérés:** OpenShift Route irányítja a HTTP(S) forgalmat a Deployment podokra.
+CI/CD réteg
 
-## Neon mint külön adatbázis-szerver
+Az OpenShift BuildConfig és ImageStream erőforrásai gondoskodnak a container image építéséről. A BuildConfig a GitHub repository main branchéről építi az image‑t.
 
-A Neon felhőalapú PostgreSQL szolgáltatás. Mivel az alkalmazás URI-n keresztül csatlakozik hozzá, a Neon önálló adatbázisrétegnek tekinthető (ugyanúgy, mint egy dedikált DB szerver). Ez biztosítja a web/app és adatbázis réteg elválasztását, ami megfelel a többrétegű architektúra elvének.
+A triggers szakaszban GitHub webhook van beállítva; minden push esemény új buildet generál. Az automatikus buildhez létre kell hozni egy megfelelő titkos kulcsot, és a webhook URL‑t be kell állítani a GitHub repóban.
 
-## További megfontolások
+Sikeres build után az ImageStream új :latest taget kap, ami ImageChange triggerrel frissíti a Deployment podsorozatát.
 
-### Skálázhatóság
+Hálózati réteg
 
-- A `Deployment` replikaszámának növelésével horizontális skálázás érhető el.
-- Ehhez a médiafájlok tárolásának több pod számára is írható/olvasható módon elérhetőnek kell lennie (`RWX`, S3/MinIO).
+A belső szolgáltatások (Deployment → Service) között OpenShift belső DNS nevek alapján történik a kommunikáció.
 
-### Webhook jogosultságok
+A külvilág számára az Route erőforrás biztosít HTTPS végpontot, amely a felhasználói kéréseket a futó podokra irányítja.
 
-- OpenShift 4.x környezetben a GitHub webhook működéséhez szükség lehet arra, hogy a `system:unauthenticated` csoport rendelkezzen `system:webhook` jogosultsággal a namespace-ben.
+A USE_X_FORWARDED_HOST és a SECURE_PROXY_SSL_HEADER beállítások a Django alkalmazásban engedélyezik a Reverse Proxy mögötti biztonságos működést.
 
-### Biztonság
+Telepítési lépések összefoglalója
 
-- A webhook secretet és az alkalmazás titkos kulcsait (`Secret`) erős, véletlenszerű értékkel érdemes beállítani.
-- A GitHub webhook és az OpenShift BuildConfig titkos kulcsa legyen konzisztens.
+Fejlesztői környezet: helyben Python + Django virtualenv, SQLite adatbázissal. Az alkalmazás funkcionalitását itt lehet fejleszteni és tesztelni.
+
+Konténerizálás: a projekt gyökérkönyvtárában lévő Dockerfile készíti el a futtatókörnyezetet. A requirements.txt telepíti a függőségeket, a collectstatic és a migrációk a build részeként futnak.
+
+Git: a forráskód felkerül a GitHub‑ra; a repository‑hoz hozzáadott BuildConfig‑webhook gondoskodik róla, hogy push után automatikusan build induljon.
+
+OpenShift erőforrások:
+
+03-build.yaml – ImageStream és BuildConfig definíció, GitHub webhook triggellel.
+
+Deployment – a konténer futtatása, a környezeti változók és a volume mountok megadása.
+
+Service és Route – belső és külső elérhetőség biztosítása.
+
+PersistentVolumeClaim – media-pvc-rwx, ReadWriteMany access móddal.
+
+CI/CD pipeline tesztelése: egy commit/push a repóban új buildet indít; a BuildConfig logjaiban követhető a build státusza. Sikeres build után a Deployment frissül.
+
+Skálázás: a Deployment replikaszámának növelésével több pod futhat. A media-pvc-rwx RWX módú kötet minden pod számára elérhető, így a feltöltött képek mindegyik példányból láthatók.
+
+Kapcsolatok és biztonsági beállítások
+
+Adatbázis‑kapcsolat: a DATABASE_URL környezeti változó a Neon Postgres URI‑t tartalmazza.
+
+Media storage: a PVC a media-storage nevű volume‑on keresztül csatlakozik; a DJANGO_MEDIA_ROOT és MEDIA_URL beállítások biztosítják, hogy a képek a /media/… útvonalon jelenjenek meg.
+
+Webhook jogosultság: OKD 4‑ben a GitHub webhookok csak akkor érik el a BuildConfigot, ha a system:unauthenticated csoport rendelkezik a system:webhook jogosultsággal. Ezt egy RoleBinding létrehozásával állítottuk be.
+
+Titok kezelése: a GitHub és a BuildConfig ugyanazt a titkos kulcsot használja; javasolt erős, véletlenszerű kulcs használata.
+
+Biztonságos HTTP: a Route TLS terminációt végez; a Django oldalán a SECURE_PROXY_SSL_HEADER van beállítva, így nem történik ismételt SSL redirect.
+
+Neon mint külön adatbázis
+
+A Neon Postgres szolgáltatás a klaszteren kívül fut, független hoszton. Az alkalmazás csak TCP kapcsolaton keresztül éri el a Neon DB‑t, így az adatbázis réteg fizikailag és logikailag elkülönül az alkalmazásrétegtől. Ez a szétválasztás megfelel a többrétegű architektúra követelményeinek.
+
+Jövőbeli fejlesztési lehetőségek
+
+Objekt‑tároló bevezetése: hosszú távon célszerű S3‑kompatibilis tárhelyet használni a médiafájlokhoz, mivel az jobban kezeli a konkurens írásokat és rugalmasságot ad a replikák számának növeléséhez.
+
+Horizontális autoscaling: HPA (Horizontal Pod Autoscaler) beállítása CPU/ memória terhelés alapján, ami dinamikusan növeli vagy csökkenti a podok számát.
+
+CI/CD bővítése: integráció minőségbiztosítási lépésekkel (tesztek, linter), vagy staging környezet a release előtti ellenőrzésekhez.
+
+Ez a dokumentáció összefoglalja a végleges fényképalbum‑alkalmazás architektúráját és a környezet főbb beállításait. A cél egy skálázható, több rétegű, felhőalapú megoldás volt, amely elválasztja az alkalmazást, az adatbázist és a tárolót, és automatikus build‑ és deployment‑folyamattal működik.
