@@ -12,6 +12,7 @@ spec:
   source:
     type: Git
     git:
+      # URL and branch of your GitHub repository
       uri: "https://github.com/stefflermateBME/photoalbum.git"
       ref: "main"
   strategy:
@@ -22,4 +23,12 @@ spec:
     to:
       kind: ImageStreamTag
       name: "photoalbum-git:latest"
-  triggers: []   # szándékosan üres, hogy biztosan kézzel indítsuk
+  triggers:
+    # Trigger a new build whenever a commit is pushed to GitHub.
+    # Replace <my-github-secret> with a strong random string and reuse it in GitHub webhooks.
+    - type: GitHub
+      github:
+        secret: 123456789
+    # Trigger a new build whenever the build configuration itself changes (e.g. this YAML is updated)
+    - type: ConfigChange
+      configChange: {}
