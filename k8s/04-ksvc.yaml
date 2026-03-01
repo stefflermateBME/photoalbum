@@ -9,6 +9,13 @@ spec:
         autoscaling.knative.dev/minScale: "1"
         autoscaling.knative.dev/maxScale: "5"
     spec:
+      volumes:                      # ✅ ITT kell lennie
+        - name: media-storage
+          persistentVolumeClaim:
+            claimName: media-pvc
+        - name: staticfiles
+          emptyDir: {}
+
       containers:
         - name: photoalbum
           image: image-registry.openshift-image-registry.svc:5000/photoalbum/photoalbum:latest
@@ -24,9 +31,3 @@ spec:
               mountPath: /data/media
             - name: staticfiles
               mountPath: /app/staticfiles
-      volumes:
-        - name: media-storage
-          persistentVolumeClaim:
-            claimName: media-pvc
-        - name: staticfiles
-          emptyDir: {}
