@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . /app/
 
-# Create dirs (OpenShift random UID is ok if mounted volume provides perms)
+# Create dirs (OpenShift random UID is ok if mounted volume provides perms)dd
 RUN mkdir -p /data/media /app/staticfiles
 
 ENV DJANGO_MEDIA_ROOT=/data/media
