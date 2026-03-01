@@ -86,9 +86,9 @@ STATIC_URL = "/static/"
 STATIC_ROOT = "/tmp/staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
+# Media (feltöltött képek)
 MEDIA_URL = "/media/"
-MEDIA_ROOT = os.getenv("DJANGO_MEDIA_ROOT", str(BASE_DIR / "media"))
-
+MEDIA_ROOT = os.getenv("MEDIA_ROOT", "/data/media")  # ide mountolsz majd (PVC vagy emptyDir)
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "login"
