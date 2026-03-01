@@ -55,7 +55,7 @@ def photo_delete(request, pk: int):
 
     return render(request, "album/photo_confirm_delete.html", {"photo": photo})
 
-# build trigger test 333 ADS
+# build trigger test 333 ADSll
 def signup(request):
     if request.method == "POST":
         form = UserCreationForm(request.POST)
