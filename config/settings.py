@@ -7,18 +7,15 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Secret és debug mód
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-unsafe-secret-key")
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
 
-# Allowed hosts
-# OpenShift route domain: *.openshiftapps.com
+# Engedélyezett hosztok és CSRF‑eredetek
 allowed = os.getenv("DJANGO_ALLOWED_HOSTS", ".openshiftapps.com,localhost,127.0.0.1")
 ALLOWED_HOSTS = [h.strip() for h in allowed.split(",") if h.strip()]
-
-CSRF_TRUSTED_ORIGINS = []
 csrf = os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "")
-if csrf.strip():
-    CSRF_TRUSTED_ORIGINS = [x.strip() for x in csrf.split(",") if x.strip()]
+CSRF_TRUSTED_ORIGINS = [x.strip() for x in csrf.split(",") if x.strip()] if csrf.strip() else []
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -63,11 +60,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Database: use DATABASE_URL (postgres://...)
+# Adatbázis: DATABASE_URL alapján (postgres)
 DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL')
-    )
+    "default": dj_database_url.config(default=os.environ.get("DATABASE_URL"))
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -82,25 +77,30 @@ TIME_ZONE = "Europe/Budapest"
 USE_I18N = True
 USE_TZ = True
 
+# Statikus fájlok
 STATIC_URL = "/static/"
-STATIC_ROOT = "/tmp/staticfiles"
+# STATIC_ROOT environmentből vagy fallbackként /app/staticfiles (OpenShift)
+STATIC_ROOT = os.getenv("DJANGO_STATIC_ROOT", os.getenv("STATIC_ROOT", "/app/staticfiles"))
+# WhiteNoise tároló használata
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# Media (feltöltött képek)
+# Feltöltött médiafájlok
 MEDIA_URL = "/media/"
-MEDIA_ROOT = os.getenv("MEDIA_ROOT", "/data/media")  # ide mountolsz majd (PVC vagy emptyDir)
+# MEDIA_ROOT environmentből vagy fallbackként /data/media
+MEDIA_ROOT = os.getenv("DJANGO_MEDIA_ROOT", os.getenv("MEDIA_ROOT", "/data/media"))
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "photo-list"
 LOGOUT_REDIRECT_URL = "photo-list"
 
-# Proxy / OpenShift Route HTTPS
+# Proxy / OpenShift Route HTTPS kezelése
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# Reasonable security defaults for prod
+# Biztonsági beállítások productionben
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_SSL_REDIRECT = False  # route terminates TLS; keep false unless you know headers are correct
+    SECURE_SSL_REDIRECT = False  # a TLS termináció az OpenShift Route-on történik
